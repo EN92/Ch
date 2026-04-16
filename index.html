@@ -1,0 +1,481 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>城市狂飙：网页小游戏</title>
+  <style>
+    :root {
+      --bg: #111827;
+      --panel: #1f2937;
+      --text: #f9fafb;
+      --accent: #22c55e;
+      --danger: #ef4444;
+      --warn: #f59e0b;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: radial-gradient(circle at top, #1f2937, #0f172a 60%, #020617);
+      color: var(--text);
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 18px;
+    }
+
+    .game-wrap {
+      width: min(980px, 100%);
+      background: linear-gradient(180deg, #0b1220, #0f172a);
+      border: 1px solid #334155;
+      border-radius: 14px;
+      box-shadow: 0 20px 45px rgba(0, 0, 0, 0.45);
+      overflow: hidden;
+    }
+
+    .hud {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      padding: 12px;
+      background: rgba(31, 41, 55, 0.85);
+      border-bottom: 1px solid #334155;
+    }
+
+    .stat {
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid #334155;
+      border-radius: 10px;
+      padding: 10px;
+      text-align: center;
+    }
+
+    .stat b { display: block; font-size: 1.06rem; margin-top: 4px; }
+
+    .stat.wanted b { color: var(--danger); }
+
+    .canvas-box {
+      position: relative;
+      aspect-ratio: 16 / 9;
+      max-height: 70vh;
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      background: #0b111f;
+    }
+
+    .overlay {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      background: rgba(2, 6, 23, 0.68);
+      text-align: center;
+      padding: 20px;
+    }
+
+    .panel {
+      max-width: 560px;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      background: rgba(15, 23, 42, 0.95);
+      padding: 20px;
+    }
+
+    .panel h1 { margin-top: 0; font-size: clamp(1.2rem, 2.4vw, 1.9rem); }
+
+    .panel p {
+      margin: 10px 0;
+      line-height: 1.6;
+      color: #cbd5e1;
+    }
+
+    button {
+      margin-top: 8px;
+      border: 0;
+      border-radius: 10px;
+      background: var(--accent);
+      color: #052e16;
+      font-weight: 700;
+      font-size: 1rem;
+      padding: 11px 18px;
+      cursor: pointer;
+    }
+
+    .tips {
+      padding: 10px 12px 14px;
+      border-top: 1px solid #334155;
+      color: #94a3b8;
+      font-size: 0.95rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="game-wrap">
+    <div class="hud">
+      <div class="stat">得分<b id="score">0</b></div>
+      <div class="stat wanted">通缉等级<b id="wanted">★</b></div>
+      <div class="stat">耐久<b id="hp">100</b></div>
+      <div class="stat">速度<b id="speed">0</b></div>
+    </div>
+
+    <div class="canvas-box">
+      <canvas id="game" width="960" height="540"></canvas>
+      <div class="overlay" id="overlay">
+        <div class="panel">
+          <h1>城市狂飙（GTA 风格致敬）</h1>
+          <p>在城市街区中飙车、躲避警车、收集现金包！</p>
+          <p><b>操作：</b>W/↑加速，S/↓倒车，A/D 或 ←/→ 转向，空格手刹漂移。</p>
+          <p>碰撞警车会掉耐久；通缉等级越高，警车越多。活得越久分数越高。</p>
+          <button id="startBtn">开始游戏</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="tips">仅供学习与娱乐的致敬版网页小游戏，不涉及任何原作资产。</div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+
+    const scoreEl = document.getElementById('score');
+    const wantedEl = document.getElementById('wanted');
+    const hpEl = document.getElementById('hp');
+    const speedEl = document.getElementById('speed');
+    const overlay = document.getElementById('overlay');
+    const startBtn = document.getElementById('startBtn');
+
+    const WORLD = { w: 2600, h: 1800 };
+    const keys = new Set();
+
+    const game = {
+      running: false,
+      score: 0,
+      wanted: 1,
+      lastWantedUp: 0,
+      cash: [],
+      obstacles: [],
+      cops: [],
+      player: {
+        x: WORLD.w / 2,
+        y: WORLD.h / 2,
+        angle: 0,
+        speed: 0,
+        hp: 100,
+        maxSpeed: 6.2,
+        size: 16,
+      },
+      time: 0,
+    };
+
+    function rand(min, max) {
+      return Math.random() * (max - min) + min;
+    }
+
+    function clamp(v, min, max) {
+      return Math.max(min, Math.min(max, v));
+    }
+
+    function dist(a, b) {
+      return Math.hypot(a.x - b.x, a.y - b.y);
+    }
+
+    function spawnWorld() {
+      game.obstacles.length = 0;
+      game.cash.length = 0;
+      game.cops.length = 0;
+
+      for (let i = 0; i < 38; i++) {
+        game.obstacles.push({
+          x: rand(120, WORLD.w - 120),
+          y: rand(120, WORLD.h - 120),
+          w: rand(50, 130),
+          h: rand(50, 130),
+          color: i % 2 ? '#475569' : '#64748b',
+        });
+      }
+
+      for (let i = 0; i < 16; i++) spawnCash();
+      for (let i = 0; i < 2; i++) spawnCop();
+    }
+
+    function spawnCash() {
+      game.cash.push({ x: rand(80, WORLD.w - 80), y: rand(80, WORLD.h - 80), r: 9 });
+    }
+
+    function spawnCop() {
+      const p = game.player;
+      const angle = rand(0, Math.PI * 2);
+      const radius = rand(220, 430);
+      game.cops.push({
+        x: clamp(p.x + Math.cos(angle) * radius, 20, WORLD.w - 20),
+        y: clamp(p.y + Math.sin(angle) * radius, 20, WORLD.h - 20),
+        angle: rand(0, Math.PI * 2),
+        speed: rand(2.2, 3.8),
+        size: 14,
+        bumpCd: 0,
+      });
+    }
+
+    function resetGame() {
+      game.running = true;
+      game.score = 0;
+      game.wanted = 1;
+      game.lastWantedUp = 0;
+      game.time = 0;
+
+      Object.assign(game.player, {
+        x: WORLD.w / 2,
+        y: WORLD.h / 2,
+        angle: -Math.PI / 2,
+        speed: 0,
+        hp: 100,
+      });
+
+      spawnWorld();
+      updateHud();
+    }
+
+    function updateHud() {
+      scoreEl.textContent = Math.floor(game.score).toString();
+      wantedEl.textContent = '★'.repeat(game.wanted);
+      hpEl.textContent = Math.max(0, Math.round(game.player.hp)).toString();
+      speedEl.textContent = Math.round(Math.abs(game.player.speed) * 22).toString();
+    }
+
+    function collidesRect(px, py, pad = 0) {
+      for (const o of game.obstacles) {
+        if (px > o.x - o.w / 2 - pad && px < o.x + o.w / 2 + pad && py > o.y - o.h / 2 - pad && py < o.y + o.h / 2 + pad) {
+          return o;
+        }
+      }
+      return null;
+    }
+
+    function updatePlayer(dt) {
+      const p = game.player;
+      const accel = (keys.has('w') || keys.has('arrowup')) ? 0.19 : 0;
+      const brake = (keys.has('s') || keys.has('arrowdown')) ? 0.16 : 0;
+      const turn = (keys.has('a') || keys.has('arrowleft') ? -1 : 0) + (keys.has('d') || keys.has('arrowright') ? 1 : 0);
+      const drifting = keys.has(' ');
+
+      p.speed += accel;
+      p.speed -= brake;
+      p.speed *= drifting ? 0.993 : 0.985;
+      p.speed = clamp(p.speed, -2.8, p.maxSpeed + game.wanted * 0.22);
+
+      if (Math.abs(p.speed) > 0.06) {
+        p.angle += turn * (0.04 + Math.abs(p.speed) * 0.008) * Math.sign(p.speed || 1);
+      }
+
+      const oldX = p.x;
+      const oldY = p.y;
+      p.x += Math.cos(p.angle) * p.speed * dt * 60;
+      p.y += Math.sin(p.angle) * p.speed * dt * 60;
+
+      p.x = clamp(p.x, p.size, WORLD.w - p.size);
+      p.y = clamp(p.y, p.size, WORLD.h - p.size);
+
+      if (collidesRect(p.x, p.y, p.size)) {
+        p.x = oldX;
+        p.y = oldY;
+        p.speed *= -0.45;
+        p.hp -= 3;
+      }
+    }
+
+    function updateCops(dt) {
+      const p = game.player;
+      for (const c of game.cops) {
+        const dx = p.x - c.x;
+        const dy = p.y - c.y;
+        const target = Math.atan2(dy, dx);
+        let diff = target - c.angle;
+        diff = Math.atan2(Math.sin(diff), Math.cos(diff));
+        c.angle += diff * 0.07;
+
+        const chase = c.speed + game.wanted * 0.25;
+        c.x += Math.cos(c.angle) * chase * dt * 60;
+        c.y += Math.sin(c.angle) * chase * dt * 60;
+        c.x = clamp(c.x, c.size, WORLD.w - c.size);
+        c.y = clamp(c.y, c.size, WORLD.h - c.size);
+
+        if (collidesRect(c.x, c.y, c.size)) {
+          c.angle += Math.PI / 2;
+        }
+
+        c.bumpCd = Math.max(0, c.bumpCd - dt);
+        if (dist(c, p) < c.size + p.size && c.bumpCd === 0) {
+          p.hp -= 8;
+          p.speed *= 0.8;
+          c.bumpCd = 0.6;
+        }
+      }
+    }
+
+    function updateCash() {
+      const p = game.player;
+      for (let i = game.cash.length - 1; i >= 0; i--) {
+        if (dist(p, game.cash[i]) < p.size + game.cash[i].r) {
+          game.cash.splice(i, 1);
+          game.score += 80;
+          if (Math.random() < 0.45) spawnCash();
+          if (Math.random() < 0.26) game.wanted = clamp(game.wanted + 1, 1, 5);
+        }
+      }
+
+      while (game.cash.length < 14) spawnCash();
+    }
+
+    function difficultyRamp() {
+      if (game.time - game.lastWantedUp > 20 && game.wanted < 5) {
+        game.wanted += 1;
+        game.lastWantedUp = game.time;
+      }
+
+      const targetCops = 1 + game.wanted * 2;
+      while (game.cops.length < targetCops) spawnCop();
+    }
+
+    function drawRoadGrid(camX, camY) {
+      ctx.fillStyle = '#1d4ed8';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      const step = 120;
+      for (let x = -((camX % step) + step); x < canvas.width + step; x += step) {
+        ctx.fillStyle = '#334155';
+        ctx.fillRect(x, 0, 58, canvas.height);
+        ctx.strokeStyle = '#f8fafc';
+        ctx.setLineDash([14, 18]);
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(x + 29, 0);
+        ctx.lineTo(x + 29, canvas.height);
+        ctx.stroke();
+      }
+
+      for (let y = -((camY % step) + step); y < canvas.height + step; y += step) {
+        ctx.fillStyle = '#334155';
+        ctx.fillRect(0, y, canvas.width, 58);
+        ctx.strokeStyle = '#f8fafc';
+        ctx.setLineDash([14, 18]);
+        ctx.beginPath();
+        ctx.moveTo(0, y + 29);
+        ctx.lineTo(canvas.width, y + 29);
+        ctx.stroke();
+      }
+      ctx.setLineDash([]);
+    }
+
+    function drawCar(entity, color, camX, camY) {
+      ctx.save();
+      ctx.translate(entity.x - camX, entity.y - camY);
+      ctx.rotate(entity.angle);
+      ctx.fillStyle = color;
+      ctx.fillRect(-entity.size, -entity.size * 0.7, entity.size * 2, entity.size * 1.4);
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(-entity.size * 0.45, -entity.size * 0.5, entity.size * 0.9, entity.size);
+      ctx.fillStyle = '#f8fafc';
+      ctx.fillRect(entity.size * 0.62, -3, 5, 6);
+      ctx.restore();
+    }
+
+    function drawWorld() {
+      const p = game.player;
+      const camX = clamp(p.x - canvas.width / 2, 0, WORLD.w - canvas.width);
+      const camY = clamp(p.y - canvas.height / 2, 0, WORLD.h - canvas.height);
+
+      drawRoadGrid(camX, camY);
+
+      for (const o of game.obstacles) {
+        ctx.fillStyle = o.color;
+        ctx.fillRect(o.x - o.w / 2 - camX, o.y - o.h / 2 - camY, o.w, o.h);
+      }
+
+      for (const cash of game.cash) {
+        ctx.fillStyle = '#facc15';
+        ctx.beginPath();
+        ctx.arc(cash.x - camX, cash.y - camY, cash.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      for (const c of game.cops) drawCar(c, '#ef4444', camX, camY);
+      drawCar(p, '#22c55e', camX, camY);
+
+      // 小地图
+      const miniW = 200;
+      const miniH = 130;
+      const miniX = canvas.width - miniW - 16;
+      const miniY = 16;
+      ctx.fillStyle = 'rgba(15,23,42,0.8)';
+      ctx.fillRect(miniX, miniY, miniW, miniH);
+      ctx.strokeStyle = '#94a3b8';
+      ctx.strokeRect(miniX, miniY, miniW, miniH);
+
+      const sx = miniW / WORLD.w;
+      const sy = miniH / WORLD.h;
+      ctx.fillStyle = '#22c55e';
+      ctx.fillRect(miniX + p.x * sx - 3, miniY + p.y * sy - 3, 6, 6);
+      ctx.fillStyle = '#ef4444';
+      for (const c of game.cops.slice(0, 18)) {
+        ctx.fillRect(miniX + c.x * sx - 2, miniY + c.y * sy - 2, 4, 4);
+      }
+    }
+
+    function endGame() {
+      game.running = false;
+      overlay.style.display = 'grid';
+      overlay.querySelector('h1').textContent = '你被包围了！';
+      overlay.querySelector('p').textContent = `最终得分：${Math.floor(game.score)}，刷新页面可再次挑战。`;
+      startBtn.textContent = '再来一局';
+    }
+
+    let last = performance.now();
+    function loop(now) {
+      const dt = Math.min(0.04, (now - last) / 1000);
+      last = now;
+
+      if (game.running) {
+        game.time += dt;
+        game.score += dt * (6 + game.wanted * 2);
+
+        updatePlayer(dt);
+        updateCops(dt);
+        updateCash();
+        difficultyRamp();
+
+        if (game.player.hp <= 0) endGame();
+      }
+
+      drawWorld();
+      updateHud();
+      requestAnimationFrame(loop);
+    }
+
+    window.addEventListener('keydown', (e) => {
+      keys.add(e.key.toLowerCase());
+      if (["arrowup", "arrowdown", "arrowleft", "arrowright", " "].includes(e.key.toLowerCase())) e.preventDefault();
+    });
+
+    window.addEventListener('keyup', (e) => {
+      keys.delete(e.key.toLowerCase());
+    });
+
+    startBtn.addEventListener('click', () => {
+      overlay.style.display = 'none';
+      resetGame();
+      canvas.focus();
+    });
+
+    spawnWorld();
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>
