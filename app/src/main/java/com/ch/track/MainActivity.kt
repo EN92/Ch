@@ -10,6 +10,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -33,6 +34,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.material3.Slider
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -70,6 +72,46 @@ private fun speedSparkline(values: List<Float>): String {
     return values.takeLast(12).joinToString("") { v ->
         val idx = ((v / max) * (blocks.size - 1)).toInt().coerceIn(0, blocks.size - 1)
         blocks[idx]
+    }
+}
+
+
+@Composable
+private fun StatsPanel(historyKm: List<Float>, paceSec: List<Int>, modifier: Modifier = Modifier) {
+    Card(modifier = modifier, colors = CardDefaults.cardColors(containerColor = Color(0xFF1B1E24))) {
+        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("📊 完整可视化统计页", color = Color.White, style = MaterialTheme.typography.titleMedium)
+            if (historyKm.isEmpty()) {
+                Text("暂无统计数据", color = Color(0xFFB8C0CC))
+            } else {
+                Text("里程分布（最近会话）", color = Color(0xFFB8C0CC))
+                Canvas(modifier = Modifier.fillMaxWidth().height(120.dp)) {
+                    val maxV = historyKm.maxOrNull()?.coerceAtLeast(0.1f) ?: 1f
+                    val barW = size.width / historyKm.size
+                    historyKm.forEachIndexed { i, v ->
+                        val h = (v / maxV) * size.height
+                        drawRect(
+                            color = Color(0xFF4FC3F7),
+                            topLeft = Offset(i * barW + 6f, size.height - h),
+                            size = androidx.compose.ui.geometry.Size(barW - 12f, h)
+                        )
+                    }
+                }
+                Text("配速分布（s/km）", color = Color(0xFFB8C0CC))
+                Canvas(modifier = Modifier.fillMaxWidth().height(120.dp)) {
+                    val maxP = paceSec.maxOrNull()?.coerceAtLeast(1) ?: 1
+                    val barW = size.width / paceSec.size
+                    paceSec.forEachIndexed { i, p ->
+                        val h = (p.toFloat() / maxP) * size.height
+                        drawRect(
+                            color = Color(0xFFFFB74D),
+                            topLeft = Offset(i * barW + 6f, size.height - h),
+                            size = androidx.compose.ui.geometry.Size(barW - 12f, h)
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -136,6 +178,13 @@ private fun Dashboard(innerPadding: PaddingValues, viewModel: RecordViewModel) {
                 Text(viewModel.splitPreview())
             }
         }
+
+
+        StatsPanel(
+            historyKm = history.take(7).map { it.distanceMeters / 1000f },
+            paceSec = history.take(7).map { it.avgPaceSecPerKm },
+            modifier = Modifier.fillMaxWidth()
+        )
 
         Button(modifier = Modifier.fillMaxWidth().height(80.dp), onClick = {
             if (status == RecordStatus.RECORDING) {
