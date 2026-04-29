@@ -1,6 +1,7 @@
 package com.ch.track.ui
 
 import android.app.Application
+import android.content.pm.PackageManager
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.ch.track.core.TrackRecorder
@@ -309,6 +310,37 @@ class RecordViewModel(app: Application) : AndroidViewModel(app) {
             "云同步开关: ${if (cloudOn) "✅ 已开启" else "ℹ️ 未开启"}",
             "地图供应商: ℹ️ ${_settings.value.mapVendor}"
         )
+    }
+
+    fun featureAvailability(): List<String> {
+        val app = getApplication<Application>()
+        val mapReady = when (_settings.value.mapVendor) {
+            MapVendor.GOOGLE -> hasManifestKey("com.google.android.geo.API_KEY")
+            MapVendor.MAPBOX -> hasManifestKey("com.mapbox.token")
+            MapVendor.AMAP -> hasManifestKey("com.amap.api.v2.apikey")
+            MapVendor.BAIDU -> hasManifestKey("com.baidu.lbsapi.API_KEY")
+        }
+        val gpxReady = history.value.isNotEmpty()
+        val cloudReady = true
+        val recordReady = status.value != RecordStatus.PAUSED || pointCount.value >= 0
+        return listOf(
+            "录制功能: ${if (recordReady) "✅ 可用" else "❌ 不可用"}",
+            "地图功能(${_settings.value.mapVendor}): ${if (mapReady) "✅ 可用" else "❌ 缺少有效 API Key"}",
+            "GPX导出: ${if (gpxReady) "✅ 可用" else "⚠️ 需要先完成一次记录"}",
+            "云同步存根: ${if (cloudReady) "✅ 可用" else "❌ 不可用"}",
+            "历史详情/收藏: ${if (history.value.isNotEmpty()) "✅ 可用" else "⚠️ 暂无会话数据"}"
+        )
+    }
+
+    private fun hasManifestKey(name: String): Boolean {
+        return try {
+            val app = getApplication<Application>()
+            val ai = app.packageManager.getApplicationInfo(app.packageName, PackageManager.GET_META_DATA)
+            val value = ai.metaData?.getString(name)?.trim().orEmpty()
+            value.isNotEmpty() && !value.startsWith("YOUR_")
+        } catch (_: Exception) {
+            false
+        }
     }
 
     fun selfCheckScore(): Int {

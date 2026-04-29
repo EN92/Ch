@@ -193,6 +193,10 @@ private fun Dashboard(innerPadding: PaddingValues, viewModel: RecordViewModel) {
                 viewModel.selfCheckItems().forEach { item ->
                     Text(item, color = Color(0xFFB8C0CC))
                 }
+                Text("🧩 功能可用性", color = Color.White, style = MaterialTheme.typography.titleMedium)
+                viewModel.featureAvailability().forEach { item ->
+                    Text(item, color = Color(0xFFB8C0CC))
+                }
                 Text("✨ UI 细节优化建议", color = Color.White, style = MaterialTheme.typography.titleMedium)
                 viewModel.uiDetailTips().forEachIndexed { i, tip ->
                     Text("${i + 1}. $tip", color = Color(0xFFB8C0CC))
