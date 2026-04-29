@@ -58,6 +58,12 @@ class RecordViewModel(app: Application) : AndroidViewModel(app) {
     val metrics: StateFlow<UsageMetrics> = _metrics.asStateFlow()
     val splitStats: StateFlow<List<String>> = _splitPreview.asStateFlow()
 
+    private val _historyFilter = MutableStateFlow<ActivityType?>(null)
+    val historyFilter: StateFlow<ActivityType?> = _historyFilter.asStateFlow()
+
+    val filteredHistory: List<TrackSession>
+        get() = history.value.filter { _historyFilter.value == null || it.activityType == _historyFilter.value }
+
     fun mapSummary(points: List<TrackPoint>): String = MapProviderFactory.create(_settings.value.mapVendor).renderSummary(points)
 
     private var startTs: Long = 0L
@@ -129,7 +135,8 @@ class RecordViewModel(app: Application) : AndroidViewModel(app) {
             activityType = _settings.value.activityType,
             points = points,
             distanceMeters = distance,
-            avgPaceSecPerKm = pace
+            avgPaceSecPerKm = pace,
+            isFavorite = false
         )
         viewModelScope.launch {
             repository.saveSession(session)
@@ -195,6 +202,16 @@ class RecordViewModel(app: Application) : AndroidViewModel(app) {
         return "已导出到: ${file.absolutePath}"
     }
     fun clearHistory() { viewModelScope.launch { repository.clearHistory() }; _message.value = "历史已清空" }
+    fun toggleFavorite(id: String) { repository.toggleFavorite(id) }
+    fun cycleHistoryFilter() {
+        _historyFilter.value = when (_historyFilter.value) {
+            null -> ActivityType.RUN
+            ActivityType.RUN -> ActivityType.HIKE
+            ActivityType.HIKE -> ActivityType.RIDE
+            ActivityType.RIDE -> null
+        }
+    }
+    fun batteryScoreHint(): String = "续航评分: " + if (_settings.value.powerSave) "A" else "B"
 
     fun resumeDraftIfAny() {
         if (draftStore.hasActiveSession()) {

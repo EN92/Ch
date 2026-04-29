@@ -79,6 +79,7 @@ private fun Dashboard(innerPadding: PaddingValues, viewModel: RecordViewModel) {
     val sampling by viewModel.sampling.collectAsStateWithLifecycle()
     val pointCount by viewModel.pointCount.collectAsStateWithLifecycle()
     val history by viewModel.history.collectAsStateWithLifecycle()
+    val filter by viewModel.historyFilter.collectAsStateWithLifecycle()
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
     val selected by viewModel.selected.collectAsStateWithLifecycle()
@@ -117,6 +118,7 @@ private fun Dashboard(innerPadding: PaddingValues, viewModel: RecordViewModel) {
                 Text("地图供应商：${settings.mapVendor} | 云同步：${if (settings.cloudSync) "开" else "关"} | AI：${if (settings.aiInsight) "开" else "关"}")
                 Text("运动类型：${settings.activityType} · 点位数：$pointCount")
                 Text(viewModel.summary())
+                Text(viewModel.batteryScoreHint())
             }
         }
 
@@ -178,15 +180,17 @@ private fun Dashboard(innerPadding: PaddingValues, viewModel: RecordViewModel) {
             android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
         }) { Text("导出GPX到文件") }
         Button(modifier = Modifier.fillMaxWidth(), onClick = { viewModel.resumeDraftIfAny() }) { Text("恢复草稿提示") }
+        Button(modifier = Modifier.fillMaxWidth(), onClick = { viewModel.cycleHistoryFilter() }) { Text("历史筛选: ${filter ?: "全部"}") }
 
         Text("🏃 历史记录", color = Color.White, style = MaterialTheme.typography.titleMedium)
         LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            items(history.take(3)) { item ->
+            items(viewModel.filteredHistory.take(3)) { item ->
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text("轨迹摘要", color = Color(0xFFB8C0CC))
                         Text(text = "${item.activityType} · ${item.id.take(8)} · %.2fkm".format(item.distanceMeters / 1000f))
                         Button(onClick = { viewModel.selectSession(item.id) }) { Text("查看详情") }
+                        Button(onClick = { viewModel.toggleFavorite(item.id) }) { Text(if (item.isFavorite) "取消收藏" else "收藏") }
                     }
                 }
             }

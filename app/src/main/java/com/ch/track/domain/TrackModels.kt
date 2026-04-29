@@ -19,7 +19,8 @@ data class TrackSession(
     val activityType: ActivityType,
     val points: List<TrackPoint>,
     val distanceMeters: Float,
-    val avgPaceSecPerKm: Int
+    val avgPaceSecPerKm: Int,
+    val isFavorite: Boolean = false
 )
 
 data class UserSettings(

@@ -45,17 +45,22 @@ class TrackRepository(
     }
 
     fun observeDbHistory(): Flow<List<TrackSession>>? = dao?.observeSessions()?.map { rows ->
-        rows.map { TrackSession(it.id, it.startTime, it.endTime, ActivityType.valueOf(it.activityType), emptyList(), it.distanceMeters, it.avgPaceSecPerKm) }
+        rows.map { TrackSession(it.id, it.startTime, it.endTime, ActivityType.valueOf(it.activityType), emptyList(), it.distanceMeters, it.avgPaceSecPerKm, false) }
     }
 
     suspend fun loadSessionDetail(sessionId: String): TrackSession? {
         val s = dao?.sessionById(sessionId) ?: return sessions.firstOrNull { it.id == sessionId }
         val points = dao.pointsBySession(sessionId).map { TrackPoint(it.lat, it.lon, it.time, it.speed, it.accuracy) }
-        return TrackSession(s.id, s.startTime, s.endTime, ActivityType.valueOf(s.activityType), points, s.distanceMeters, s.avgPaceSecPerKm)
+        return TrackSession(s.id, s.startTime, s.endTime, ActivityType.valueOf(s.activityType), points, s.distanceMeters, s.avgPaceSecPerKm, false)
     }
 
     fun pointCountFlow(): StateFlow<Int> = _pointCount.asStateFlow()
     fun historyFlow(): StateFlow<List<TrackSession>> = _history.asStateFlow()
+
+    fun toggleFavorite(sessionId: String) {
+        val updated = _history.value.map { if (it.id == sessionId) it.copy(isFavorite = !it.isFavorite) else it }
+        _history.value = updated
+    }
 
     suspend fun clearHistory() {
         sessions.clear()
