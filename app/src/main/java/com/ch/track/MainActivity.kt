@@ -39,6 +39,8 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ch.track.domain.RecordStatus
+import com.ch.track.map.GoogleMapTrackView
+import com.ch.track.map.MapVendor
 import com.ch.track.service.RecordForegroundService
 import com.ch.track.ui.RecordViewModel
 
@@ -198,6 +200,9 @@ private fun Dashboard(innerPadding: PaddingValues, viewModel: RecordViewModel) {
                     Text("距离 %.2fkm 配速 ${detail.avgPaceSecPerKm}s/km".format(detail.distanceMeters / 1000f))
                     Text("质量：平均精度 %.1fm / 最高速度 %.1fm/s".format(avgAcc, maxSpeed))
                     Text("地图回放：${viewModel.mapSummary(detail.points)}")
+                    if (settings.mapVendor == MapVendor.GOOGLE) {
+                        GoogleMapTrackView(points = detail.points, modifier = Modifier.fillMaxWidth().height(180.dp))
+                    }
                     Text("速度曲线：${speedSparkline(speeds)}")
                     if (speeds.isNotEmpty()) {
                         Slider(value = clamped.toFloat(), onValueChange = { focusIndex.intValue = it.toInt() }, valueRange = 0f..(speeds.size - 1).toFloat())
