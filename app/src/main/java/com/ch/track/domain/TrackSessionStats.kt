@@ -29,3 +29,26 @@ fun formatPace(secPerKm: Int): String {
     val sec = secPerKm % 60
     return "%d:%02d /km".format(min, sec)
 }
+
+
+data class SplitStat(val kmIndex: Int, val paceSecPerKm: Int)
+
+fun calculateSplitStats(points: List<TrackPoint>): List<SplitStat> {
+    if (points.size < 2) return emptyList()
+    val result = mutableListOf<SplitStat>()
+    var segStart = 0
+    var currentKm = 1
+    var accumulated = 0f
+    for (i in 1 until points.size) {
+        val part = calculateDistanceMeters(listOf(points[i-1], points[i]))
+        accumulated += part
+        if (accumulated >= 1000f) {
+            val duration = ((points[i].time - points[segStart].time) / 1000).coerceAtLeast(1)
+            result += SplitStat(currentKm, duration.toInt())
+            currentKm += 1
+            segStart = i
+            accumulated = 0f
+        }
+    }
+    return result
+}

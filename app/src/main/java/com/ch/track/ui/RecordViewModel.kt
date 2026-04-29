@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.ch.track.core.TrackRecorder
+import com.ch.track.data.CloudSyncStub
 import com.ch.track.data.DraftStore
 import com.ch.track.data.TrackRepository
 import com.ch.track.data.UsageMetrics
@@ -18,6 +19,7 @@ import com.ch.track.domain.TrackSession
 import com.ch.track.domain.UserSettings
 import com.ch.track.domain.calculateAvgPaceSecPerKm
 import com.ch.track.domain.calculateDistanceMeters
+import com.ch.track.domain.calculateSplitStats
 import com.ch.track.domain.formatPace
 import com.ch.track.location.LocationEngine
 import com.ch.track.map.MapProviderFactory
@@ -35,6 +37,7 @@ class RecordViewModel(app: Application) : AndroidViewModel(app) {
     private val recorder = TrackRecorder(repository)
     private val locationEngine = LocationEngine(app)
     private val draftStore = DraftStore(app)
+    private val cloudSyncStub = CloudSyncStub(app)
     private val trackFilter = TrackFilter()
     private val metricsStore = UsageMetricsStore(app)
 
@@ -47,11 +50,13 @@ class RecordViewModel(app: Application) : AndroidViewModel(app) {
     private val _message = MutableStateFlow("准备开始")
     private val _selected = MutableStateFlow<TrackSession?>(null)
     private val _metrics = MutableStateFlow(metricsStore.snapshot())
+    private val _splitPreview = MutableStateFlow<List<String>>(emptyList())
 
     val settings: StateFlow<UserSettings> = _settings.asStateFlow()
     val message: StateFlow<String> = _message.asStateFlow()
     val selected: StateFlow<TrackSession?> = _selected.asStateFlow()
     val metrics: StateFlow<UsageMetrics> = _metrics.asStateFlow()
+    val splitStats: StateFlow<List<String>> = _splitPreview.asStateFlow()
 
     fun mapSummary(points: List<TrackPoint>): String = MapProviderFactory.create(_settings.value.mapVendor).renderSummary(points)
 
@@ -126,7 +131,14 @@ class RecordViewModel(app: Application) : AndroidViewModel(app) {
             distanceMeters = distance,
             avgPaceSecPerKm = pace
         )
-        viewModelScope.launch { repository.saveSession(session) }
+        viewModelScope.launch {
+            repository.saveSession(session)
+            _splitPreview.value = calculateSplitStats(session.points).map { "第${it.kmIndex}公里 ${it.paceSecPerKm}s/km" }
+            if (_settings.value.cloudSync) {
+                val path = cloudSyncStub.syncSessions(history.value)
+                _message.value = "已同步到云存根: $path"
+            }
+        }
         locationEngine.stop()
         recorder.stop()
         draftStore.clearActiveSession()
@@ -192,10 +204,7 @@ class RecordViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun splitPreview(): String {
-        val d = repository.currentPoints().size / 5
-        return "P1分段预览: 1km*${d.coerceAtLeast(1)}"
-    }
+    fun splitPreview(): String = if (_splitPreview.value.isEmpty()) "P1分段统计: 暂无" else _splitPreview.value.joinToString(" | ")
 
     fun pdcaSelfCheck(): String = "P0:多地图+回放 P1:分段统计+导出 P2:云同步/AI开关" 
 }
