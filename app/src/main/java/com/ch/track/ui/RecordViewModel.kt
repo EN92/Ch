@@ -80,6 +80,7 @@ class RecordViewModel(app: Application) : AndroidViewModel(app) {
 
     private var startTs: Long = 0L
     private var tickerJob: Job? = null
+    private var countdownJob: Job? = null
 
     private fun currentProfile(): FilterProfile {
         val base = when (_settings.value.activityType) {
@@ -104,7 +105,9 @@ class RecordViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun startWithCountdown(seconds: Int = 3) {
-        viewModelScope.launch {
+        if (status.value == RecordStatus.RECORDING) return
+        if (countdownJob?.isActive == true) return
+        countdownJob = viewModelScope.launch {
             for (i in seconds downTo 1) {
                 _countdown.value = i
                 _message.value = "即将开始记录: ${i}s"
@@ -147,6 +150,8 @@ class RecordViewModel(app: Application) : AndroidViewModel(app) {
             }
             RecordStatus.RECORDING -> {
                 recorder.pause()
+                countdownJob?.cancel()
+                _countdown.value = 0
                 tickerJob?.cancel()
                 locationEngine.stop()
                 _message.value = "已暂停"
@@ -177,6 +182,8 @@ class RecordViewModel(app: Application) : AndroidViewModel(app) {
                 _message.value = "已同步到云存根: $path"
             }
         }
+        countdownJob?.cancel()
+        _countdown.value = 0
         tickerJob?.cancel()
         locationEngine.stop()
         recorder.stop()
