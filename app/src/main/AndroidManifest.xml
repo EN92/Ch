@@ -16,6 +16,9 @@
         <meta-data
             android:name="com.google.android.geo.API_KEY"
             android:value="YOUR_GOOGLE_MAPS_API_KEY" />
+        <meta-data
+            android:name="com.mapbox.token"
+            android:value="YOUR_MAPBOX_ACCESS_TOKEN" />
 
         <activity
             android:name=".MainActivity"

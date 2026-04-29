@@ -16,7 +16,8 @@ import com.ch.track.domain.TrackPoint
 fun MultiMapTrackView(vendor: MapVendor, points: List<TrackPoint>, modifier: Modifier = Modifier) {
     when (vendor) {
         MapVendor.GOOGLE -> GoogleMapTrackView(points = points, modifier = modifier)
-        MapVendor.MAPBOX, MapVendor.AMAP, MapVendor.BAIDU -> {
+        MapVendor.MAPBOX -> MapboxTrackView(points = points, modifier = modifier)
+        MapVendor.AMAP, MapVendor.BAIDU -> {
             Box(modifier = modifier.background(Color(0xFF12171F))) {
                 Canvas(modifier = Modifier.fillMaxSize()) {
                     if (points.size > 1) {
