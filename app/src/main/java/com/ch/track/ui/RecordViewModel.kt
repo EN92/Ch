@@ -52,10 +52,13 @@ class RecordViewModel(app: Application) : AndroidViewModel(app) {
 
     private var startTs: Long = 0L
 
-    private fun currentProfile(): FilterProfile = when (_settings.value.activityType) {
-        ActivityType.RUN -> FilterProfile(9f, 25f, 0.22)
-        ActivityType.HIKE -> FilterProfile(6f, 20f, 0.18)
-        ActivityType.RIDE -> FilterProfile(18f, 35f, 0.30)
+    private fun currentProfile(): FilterProfile {
+        val base = when (_settings.value.activityType) {
+            ActivityType.RUN -> FilterProfile(9f, 25f, 0.22)
+            ActivityType.HIKE -> FilterProfile(6f, 20f, 0.18)
+            ActivityType.RIDE -> FilterProfile(18f, 35f, 0.30)
+        }
+        return base.copy(maxJumpSpeed = _settings.value.maxJumpSpeed, smoothFactor = _settings.value.smoothFactor.toDouble())
     }
 
     init {
@@ -129,6 +132,9 @@ class RecordViewModel(app: Application) : AndroidViewModel(app) {
     fun togglePowerMode() { _settings.value = _settings.value.copy(powerSave = !_settings.value.powerSave) }
     fun toggleUnit() { _settings.value = _settings.value.copy(unit = if (_settings.value.unit == "km") "mile" else "km") }
     fun toggleAutoPause() { _settings.value = _settings.value.copy(autoPause = !_settings.value.autoPause) }
+    fun updateSmoothFactor(value: Float) { _settings.value = _settings.value.copy(smoothFactor = value) }
+    fun updateMaxJumpSpeed(value: Float) { _settings.value = _settings.value.copy(maxJumpSpeed = value) }
+
     fun cycleActivityType() {
         val next = when (_settings.value.activityType) { ActivityType.RUN -> ActivityType.HIKE; ActivityType.HIKE -> ActivityType.RIDE; ActivityType.RIDE -> ActivityType.RUN }
         _settings.value = _settings.value.copy(activityType = next)

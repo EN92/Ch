@@ -24,7 +24,9 @@ data class UserSettings(
     val unit: String = "km",
     val powerSave: Boolean = false,
     val autoPause: Boolean = true,
-    val activityType: ActivityType = ActivityType.RUN
+    val activityType: ActivityType = ActivityType.RUN,
+    val smoothFactor: Float = 0.22f,
+    val maxJumpSpeed: Float = 9f
 )
 
 enum class SamplingState(val intervalMs: Long) {

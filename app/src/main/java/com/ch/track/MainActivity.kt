@@ -29,6 +29,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.material3.Slider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -142,6 +145,10 @@ private fun Dashboard(innerPadding: PaddingValues, viewModel: RecordViewModel) {
         Button(modifier = Modifier.fillMaxWidth(), onClick = { viewModel.toggleUnit() }) { Text("切换 km/mile") }
         Button(modifier = Modifier.fillMaxWidth(), onClick = { viewModel.toggleAutoPause() }) { Text("切换自动暂停") }
         Button(modifier = Modifier.fillMaxWidth(), onClick = { viewModel.cycleActivityType() }) { Text("切换运动类型") }
+        Text("平滑系数: %.2f".format(settings.smoothFactor), color = Color.White)
+        Slider(value = settings.smoothFactor, onValueChange = { viewModel.updateSmoothFactor(it) }, valueRange = 0.1f..0.5f)
+        Text("突变速度阈值: %.1f m/s".format(settings.maxJumpSpeed), color = Color.White)
+        Slider(value = settings.maxJumpSpeed, onValueChange = { viewModel.updateMaxJumpSpeed(it) }, valueRange = 4f..25f)
 
         Button(modifier = Modifier.fillMaxWidth(), onClick = {
             val intent = Intent(Intent.ACTION_SEND).apply {
@@ -175,6 +182,9 @@ private fun Dashboard(innerPadding: PaddingValues, viewModel: RecordViewModel) {
         }
 
         selected?.let { detail ->
+            val focusIndex = remember(detail.id) { mutableIntStateOf(0) }
+            val speeds = detail.points.map { it.speed }
+            val clamped = focusIndex.intValue.coerceIn(0, (speeds.size - 1).coerceAtLeast(0))
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     val avgAcc = if (detail.points.isEmpty()) 0f else detail.points.map { it.accuracy }.average()
@@ -182,7 +192,11 @@ private fun Dashboard(innerPadding: PaddingValues, viewModel: RecordViewModel) {
                     Text("详情：${detail.activityType} / 点数 ${detail.points.size}")
                     Text("距离 %.2fkm 配速 ${detail.avgPaceSecPerKm}s/km".format(detail.distanceMeters / 1000f))
                     Text("质量：平均精度 %.1fm / 最高速度 %.1fm/s".format(avgAcc, maxSpeed))
-                    Text("速度曲线：${speedSparkline(detail.points.map { it.speed })}")
+                    Text("速度曲线：${speedSparkline(speeds)}")
+                    if (speeds.isNotEmpty()) {
+                        Slider(value = clamped.toFloat(), onValueChange = { focusIndex.intValue = it.toInt() }, valueRange = 0f..(speeds.size - 1).toFloat())
+                        Text("选中点速度：%.2f m/s".format(speeds[clamped]))
+                    }
                 }
             }
         }
