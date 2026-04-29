@@ -197,6 +197,10 @@ private fun Dashboard(innerPadding: PaddingValues, viewModel: RecordViewModel) {
                 viewModel.featureAvailability().forEach { item ->
                     Text(item, color = Color(0xFFB8C0CC))
                 }
+                Text("🚧 尚未完全实现", color = Color.White, style = MaterialTheme.typography.titleMedium)
+                viewModel.unimplementedFeatures().forEachIndexed { i, item ->
+                    Text("${i + 1}. $item", color = Color(0xFFFFCC80))
+                }
                 Text("✨ UI 细节优化建议", color = Color.White, style = MaterialTheme.typography.titleMedium)
                 viewModel.uiDetailTips().forEachIndexed { i, tip ->
                     Text("${i + 1}. $tip", color = Color(0xFFB8C0CC))

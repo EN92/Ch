@@ -327,10 +327,17 @@ class RecordViewModel(app: Application) : AndroidViewModel(app) {
             "录制功能: ${if (recordReady) "✅ 可用" else "❌ 不可用"}",
             "地图功能(${_settings.value.mapVendor}): ${if (mapReady) "✅ 可用" else "❌ 缺少有效 API Key"}",
             "GPX导出: ${if (gpxReady) "✅ 可用" else "⚠️ 需要先完成一次记录"}",
-            "云同步存根: ${if (cloudReady) "✅ 可用" else "❌ 不可用"}",
+            "云同步存根: ${if (cloudReady) "✅ 可用（本地文件模拟）" else "❌ 不可用"}",
             "历史详情/收藏: ${if (history.value.isNotEmpty()) "✅ 可用" else "⚠️ 暂无会话数据"}"
         )
     }
+
+    fun unimplementedFeatures(): List<String> = listOf(
+        "真实云端同步（当前为 CloudSyncStub 本地文件模拟）",
+        "地图 SDK 真机渲染验证（需真实 API Key 与设备联调）",
+        "后台被系统回收后的会话自动恢复与补录",
+        "仪表板中的高级图表交互（缩放/拖拽/区间对比）"
+    )
 
     private fun hasManifestKey(name: String): Boolean {
         return try {
