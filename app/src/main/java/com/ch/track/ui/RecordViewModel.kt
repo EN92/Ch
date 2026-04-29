@@ -26,6 +26,7 @@ import com.ch.track.storage.AppDatabase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import java.util.UUID
 
@@ -68,6 +69,13 @@ class RecordViewModel(app: Application) : AndroidViewModel(app) {
     init {
         if (draftStore.hasActiveSession()) {
             _message.value = "检测到上次未完成记录，可继续或结束保存"
+        }
+        viewModelScope.launch {
+            repository.observeDbHistory()?.collectLatest { dbHistory ->
+                if (dbHistory.isNotEmpty()) {
+                    _message.value = "已加载本地历史 ${dbHistory.size} 条"
+                }
+            }
         }
     }
 
@@ -166,6 +174,14 @@ class RecordViewModel(app: Application) : AndroidViewModel(app) {
 
     fun shareText(): String { metricsStore.onShare(); _metrics.value = metricsStore.snapshot(); return "TraceMaster | ${summary()}" }
     fun exportLastGpx(): String = history.value.firstOrNull()?.let { repository.exportSessionAsGpx(it) } ?: "暂无可导出轨迹"
+
+    fun exportLastGpxToFile(): String {
+        val session = history.value.firstOrNull() ?: return "暂无可导出轨迹"
+        val gpx = repository.exportSessionAsGpx(session)
+        val file = java.io.File(getApplication<Application>().filesDir, "track-${session.id.take(8)}.gpx")
+        file.writeText(gpx)
+        return "已导出到: ${file.absolutePath}"
+    }
     fun clearHistory() { viewModelScope.launch { repository.clearHistory() }; _message.value = "历史已清空" }
 
     fun resumeDraftIfAny() {

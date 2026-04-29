@@ -173,6 +173,10 @@ private fun Dashboard(innerPadding: PaddingValues, viewModel: RecordViewModel) {
             context.startActivity(Intent.createChooser(intent, "导出 GPX"))
         }) { Text("导出 GPX") }
         Button(modifier = Modifier.fillMaxWidth(), onClick = { viewModel.clearHistory() }) { Text("清空历史") }
+        Button(modifier = Modifier.fillMaxWidth(), onClick = {
+            val msg = viewModel.exportLastGpxToFile()
+            android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
+        }) { Text("导出GPX到文件") }
         Button(modifier = Modifier.fillMaxWidth(), onClick = { viewModel.resumeDraftIfAny() }) { Text("恢复草稿提示") }
 
         Text("🏃 历史记录", color = Color.White, style = MaterialTheme.typography.titleMedium)
