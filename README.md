@@ -188,3 +188,9 @@ TraceMaster V5.0 的目标不是堆功能，而是建立行业级轨迹体验基
 ### 13.3 地图功能不可用
 - 若自检中显示地图功能不可用，通常是 `AndroidManifest.xml` 中地图 Key 仍为 `YOUR_*` 占位值。
 - 请替换为真实 API Key 后再进行真机验证。
+
+### 13.4 新电脑首装（仅安装 Android Studio）快速检查
+- 打开 Android Studio 一次，确保 SDK 与默认 JBR 下载完成。
+- 在项目根目录执行：`./build_apk.sh`（Windows Git Bash / macOS / Linux）。
+- 若提示 `JAVA_HOME` 问题，优先使用 Android Studio 默认 JBR 或手动设置 `JAVA_HOME` 到 JDK 17+。
+- 若提示缺少 `gradle`，建议在 Android Studio 中执行一次 Gradle 同步并补齐 `gradlew` wrapper 文件。
