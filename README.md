@@ -170,3 +170,21 @@ TraceMaster 是一款面向跑步、徒步、骑行场景的专业轨迹记录�
 ## 十二、结语
 
 TraceMaster V5.0 的目标不是堆功能，而是建立行业级轨迹体验基线。
+
+## 十三、构建排障（Build Troubleshooting）
+
+### 13.1 `org.gradle.java.home` / `JAVA_HOME` 报错
+- 现版本不再在 `gradle.properties` 中硬编码 `org.gradle.java.home`。
+- 请在本机设置 `JAVA_HOME` 指向 **JDK 17+**。
+- 可先执行：`echo $JAVA_HOME && $JAVA_HOME/bin/java -version`。
+
+### 13.2 依赖下载 `403 Forbidden`
+- 若构建输出中出现仓库 `403`，通常是网络策略或代理限制，不是业务代码语法错误。
+- 建议检查公司网络白名单/代理策略，确保可访问：
+  - Google Maven (`https://dl.google.com/dl/android/maven2/`)
+  - Maven Central (`https://repo.maven.apache.org/maven2/`)
+- 可优先运行 `./build_apk.sh`，脚本会在失败时给出定向提示。
+
+### 13.3 地图功能不可用
+- 若自检中显示地图功能不可用，通常是 `AndroidManifest.xml` 中地图 Key 仍为 `YOUR_*` 占位值。
+- 请替换为真实 API Key 后再进行真机验证。

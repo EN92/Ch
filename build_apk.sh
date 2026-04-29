@@ -17,6 +17,10 @@ if ! command -v gradle >/dev/null 2>&1; then
 fi
 
 echo "[INFO] Building debug APK..."
-gradle :app:assembleDebug
+if ! gradle :app:assembleDebug; then
+  echo "[HINT] If you see 403/forbidden while resolving dependencies, check your network/proxy/repository access policy."
+  echo "[HINT] Make sure JAVA_HOME points to JDK 17+ and Android SDK is configured in local.properties."
+  exit 1
+fi
 
 echo "[OK] APK output (expected): app/build/outputs/apk/debug/app-debug.apk"
