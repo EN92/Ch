@@ -12,7 +12,8 @@ data class SessionEntity(
     val endTime: Long,
     val activityType: String,
     val distanceMeters: Float,
-    val avgPaceSecPerKm: Int
+    val avgPaceSecPerKm: Int,
+    val isFavorite: Boolean = false
 )
 
 @Entity(

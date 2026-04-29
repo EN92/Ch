@@ -161,6 +161,16 @@ class RecordViewModel(app: Application) : AndroidViewModel(app) {
 
     fun stop() {
         val points = repository.currentPoints()
+        if (status.value == RecordStatus.STOPPED || points.isEmpty()) {
+            countdownJob?.cancel()
+            _countdown.value = 0
+            tickerJob?.cancel()
+            locationEngine.stop()
+            recorder.stop()
+            draftStore.clearActiveSession()
+            _message.value = "当前无进行中的记录"
+            return
+        }
         val distance = calculateDistanceMeters(points)
         val duration = ((System.currentTimeMillis() - startTs) / 1000).coerceAtLeast(1)
         val pace = calculateAvgPaceSecPerKm(distance, duration)

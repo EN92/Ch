@@ -25,4 +25,7 @@ interface TrackDao {
 
     @Query("DELETE FROM sessions")
     suspend fun clearSessions()
+
+    @Query("UPDATE sessions SET isFavorite = :favorite WHERE id = :sessionId")
+    suspend fun updateFavorite(sessionId: String, favorite: Boolean)
 }
