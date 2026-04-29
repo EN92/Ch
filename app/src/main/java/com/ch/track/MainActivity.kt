@@ -119,6 +119,7 @@ private fun Dashboard(innerPadding: PaddingValues, viewModel: RecordViewModel) {
                 Text("地图供应商：${settings.mapVendor} | 云同步：${if (settings.cloudSync) "开" else "关"} | AI：${if (settings.aiInsight) "开" else "关"}")
                 Text("运动类型：${settings.activityType} · 点位数：$pointCount")
                 Text(viewModel.summary())
+                Text(viewModel.liveSummary())
                 Text(viewModel.batteryScoreHint())
                 Text(viewModel.weeklySummary())
             }

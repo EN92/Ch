@@ -28,6 +28,8 @@ import com.ch.track.storage.AppDatabase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import java.util.UUID
@@ -51,12 +53,18 @@ class RecordViewModel(app: Application) : AndroidViewModel(app) {
     private val _selected = MutableStateFlow<TrackSession?>(null)
     private val _metrics = MutableStateFlow(metricsStore.snapshot())
     private val _splitPreview = MutableStateFlow<List<String>>(emptyList())
+    private val _recordSec = MutableStateFlow(0L)
+    private val _distanceLive = MutableStateFlow(0f)
+    private val _gpsQuality = MutableStateFlow("--")
 
     val settings: StateFlow<UserSettings> = _settings.asStateFlow()
     val message: StateFlow<String> = _message.asStateFlow()
     val selected: StateFlow<TrackSession?> = _selected.asStateFlow()
     val metrics: StateFlow<UsageMetrics> = _metrics.asStateFlow()
     val splitStats: StateFlow<List<String>> = _splitPreview.asStateFlow()
+    val recordSec: StateFlow<Long> = _recordSec.asStateFlow()
+    val distanceLive: StateFlow<Float> = _distanceLive.asStateFlow()
+    val gpsQuality: StateFlow<String> = _gpsQuality.asStateFlow()
 
     private val _historyFilter = MutableStateFlow<ActivityType?>(null)
     private val _favoritesOnly = MutableStateFlow(false)
@@ -69,6 +77,7 @@ class RecordViewModel(app: Application) : AndroidViewModel(app) {
     fun mapSummary(points: List<TrackPoint>): String = MapProviderFactory.create(_settings.value.mapVendor).renderSummary(points)
 
     private var startTs: Long = 0L
+    private var tickerJob: Job? = null
 
     private fun currentProfile(): FilterProfile {
         val base = when (_settings.value.activityType) {
@@ -102,12 +111,17 @@ class RecordViewModel(app: Application) : AndroidViewModel(app) {
                     draftStore.saveActiveSession(startTs, _settings.value.activityType.name)
                 }
                 recorder.start()
+                startTicker()
                 metricsStore.onStart()
                 _metrics.value = metricsStore.snapshot()
                 recorder.updateSamplingBySpeed(if (_settings.value.powerSave) 0.8f else 2.4f)
                 locationEngine.start(sampling.value.intervalMs) { lat, lon, speed, acc, time ->
                     val profile = currentProfile()
-                    trackFilter.filter(TrackPoint(lat, lon, time, speed, acc), profile)?.let { repository.addPoint(it) }
+                    trackFilter.filter(TrackPoint(lat, lon, time, speed, acc), profile)?.let {
+                        repository.addPoint(it)
+                        _distanceLive.value = calculateDistanceMeters(repository.currentPoints())
+                    }
+                    _gpsQuality.value = when { acc <= 8f -> "优"; acc <= 20f -> "良"; else -> "弱" }
                     recorder.updateSamplingBySpeed(speed)
                     if (_settings.value.autoPause && speed < 0.5f) {
                         recorder.pause()
@@ -119,6 +133,7 @@ class RecordViewModel(app: Application) : AndroidViewModel(app) {
             }
             RecordStatus.RECORDING -> {
                 recorder.pause()
+                tickerJob?.cancel()
                 locationEngine.stop()
                 _message.value = "已暂停"
             }
@@ -148,6 +163,7 @@ class RecordViewModel(app: Application) : AndroidViewModel(app) {
                 _message.value = "已同步到云存根: $path"
             }
         }
+        tickerJob?.cancel()
         locationEngine.stop()
         recorder.stop()
         draftStore.clearActiveSession()
@@ -233,6 +249,18 @@ class RecordViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun splitPreview(): String = if (_splitPreview.value.isEmpty()) "P1分段统计: 暂无" else _splitPreview.value.joinToString(" | ")
+
+    private fun startTicker() {
+        tickerJob?.cancel()
+        tickerJob = viewModelScope.launch {
+            while (true) {
+                _recordSec.value = ((System.currentTimeMillis() - startTs) / 1000).coerceAtLeast(0)
+                delay(1000)
+            }
+        }
+    }
+
+    fun liveSummary(): String = "实时: %.2fkm / ${recordSec.value}s / GPS${gpsQuality.value}".format(distanceLive.value / 1000f)
 
     fun pdcaSelfCheck(): String = "P0:多地图+回放 P1:分段统计+导出 P2:云同步/AI开关" 
 }
