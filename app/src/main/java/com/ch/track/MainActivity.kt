@@ -80,6 +80,7 @@ private fun Dashboard(innerPadding: PaddingValues, viewModel: RecordViewModel) {
     val pointCount by viewModel.pointCount.collectAsStateWithLifecycle()
     val history by viewModel.history.collectAsStateWithLifecycle()
     val filter by viewModel.historyFilter.collectAsStateWithLifecycle()
+    val favoritesOnly by viewModel.favoritesOnly.collectAsStateWithLifecycle()
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
     val selected by viewModel.selected.collectAsStateWithLifecycle()
@@ -119,6 +120,7 @@ private fun Dashboard(innerPadding: PaddingValues, viewModel: RecordViewModel) {
                 Text("运动类型：${settings.activityType} · 点位数：$pointCount")
                 Text(viewModel.summary())
                 Text(viewModel.batteryScoreHint())
+                Text(viewModel.weeklySummary())
             }
         }
 
@@ -181,6 +183,7 @@ private fun Dashboard(innerPadding: PaddingValues, viewModel: RecordViewModel) {
         }) { Text("导出GPX到文件") }
         Button(modifier = Modifier.fillMaxWidth(), onClick = { viewModel.resumeDraftIfAny() }) { Text("恢复草稿提示") }
         Button(modifier = Modifier.fillMaxWidth(), onClick = { viewModel.cycleHistoryFilter() }) { Text("历史筛选: ${filter ?: "全部"}") }
+        Button(modifier = Modifier.fillMaxWidth(), onClick = { viewModel.toggleFavoritesOnly() }) { Text(if (favoritesOnly) "仅看收藏: 开" else "仅看收藏: 关") }
 
         Text("🏃 历史记录", color = Color.White, style = MaterialTheme.typography.titleMedium)
         LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {

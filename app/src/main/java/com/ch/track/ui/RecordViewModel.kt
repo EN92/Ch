@@ -59,10 +59,12 @@ class RecordViewModel(app: Application) : AndroidViewModel(app) {
     val splitStats: StateFlow<List<String>> = _splitPreview.asStateFlow()
 
     private val _historyFilter = MutableStateFlow<ActivityType?>(null)
+    private val _favoritesOnly = MutableStateFlow(false)
     val historyFilter: StateFlow<ActivityType?> = _historyFilter.asStateFlow()
+    val favoritesOnly: StateFlow<Boolean> = _favoritesOnly.asStateFlow()
 
     val filteredHistory: List<TrackSession>
-        get() = history.value.filter { _historyFilter.value == null || it.activityType == _historyFilter.value }
+        get() = history.value.filter { (_historyFilter.value == null || it.activityType == _historyFilter.value) && (!_favoritesOnly.value || it.isFavorite) }
 
     fun mapSummary(points: List<TrackPoint>): String = MapProviderFactory.create(_settings.value.mapVendor).renderSummary(points)
 
@@ -203,6 +205,8 @@ class RecordViewModel(app: Application) : AndroidViewModel(app) {
     }
     fun clearHistory() { viewModelScope.launch { repository.clearHistory() }; _message.value = "历史已清空" }
     fun toggleFavorite(id: String) { repository.toggleFavorite(id) }
+    fun toggleFavoritesOnly() { _favoritesOnly.value = !_favoritesOnly.value }
+
     fun cycleHistoryFilter() {
         _historyFilter.value = when (_historyFilter.value) {
             null -> ActivityType.RUN
@@ -212,6 +216,13 @@ class RecordViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
     fun batteryScoreHint(): String = "续航评分: " + if (_settings.value.powerSave) "A" else "B"
+
+    fun weeklySummary(): String {
+        val sessions = history.value.take(7)
+        val totalKm = sessions.sumOf { it.distanceMeters.toDouble() } / 1000.0
+        val avgPace = sessions.map { it.avgPaceSecPerKm }.takeIf { it.isNotEmpty() }?.average()?.toInt() ?: 0
+        return "近7条: ${sessions.size}次 / %.1fkm / 均配${avgPace}s".format(totalKm)
+    }
 
     fun resumeDraftIfAny() {
         if (draftStore.hasActiveSession()) {
