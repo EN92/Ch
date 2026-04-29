@@ -19,6 +19,12 @@
         <meta-data
             android:name="com.mapbox.token"
             android:value="YOUR_MAPBOX_ACCESS_TOKEN" />
+        <meta-data
+            android:name="com.amap.api.v2.apikey"
+            android:value="YOUR_AMAP_KEY" />
+        <meta-data
+            android:name="com.baidu.lbsapi.API_KEY"
+            android:value="YOUR_BAIDU_AK" />
 
         <activity
             android:name=".MainActivity"
