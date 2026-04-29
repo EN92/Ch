@@ -20,6 +20,8 @@ import com.ch.track.domain.calculateAvgPaceSecPerKm
 import com.ch.track.domain.calculateDistanceMeters
 import com.ch.track.domain.formatPace
 import com.ch.track.location.LocationEngine
+import com.ch.track.map.MapProviderFactory
+import com.ch.track.map.MapVendor
 import com.ch.track.storage.AppDatabase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -49,6 +51,8 @@ class RecordViewModel(app: Application) : AndroidViewModel(app) {
     val message: StateFlow<String> = _message.asStateFlow()
     val selected: StateFlow<TrackSession?> = _selected.asStateFlow()
     val metrics: StateFlow<UsageMetrics> = _metrics.asStateFlow()
+
+    fun mapSummary(points: List<TrackPoint>): String = MapProviderFactory.create(_settings.value.mapVendor).renderSummary(points)
 
     private var startTs: Long = 0L
 
@@ -135,6 +139,19 @@ class RecordViewModel(app: Application) : AndroidViewModel(app) {
     fun updateSmoothFactor(value: Float) { _settings.value = _settings.value.copy(smoothFactor = value) }
     fun updateMaxJumpSpeed(value: Float) { _settings.value = _settings.value.copy(maxJumpSpeed = value) }
 
+    fun cycleMapVendor() {
+        val next = when (_settings.value.mapVendor) {
+            MapVendor.GOOGLE -> MapVendor.MAPBOX
+            MapVendor.MAPBOX -> MapVendor.AMAP
+            MapVendor.AMAP -> MapVendor.BAIDU
+            MapVendor.BAIDU -> MapVendor.GOOGLE
+        }
+        _settings.value = _settings.value.copy(mapVendor = next)
+    }
+
+    fun toggleCloudSync() { _settings.value = _settings.value.copy(cloudSync = !_settings.value.cloudSync) }
+    fun toggleAiInsight() { _settings.value = _settings.value.copy(aiInsight = !_settings.value.aiInsight) }
+
     fun cycleActivityType() {
         val next = when (_settings.value.activityType) { ActivityType.RUN -> ActivityType.HIKE; ActivityType.HIKE -> ActivityType.RIDE; ActivityType.RIDE -> ActivityType.RUN }
         _settings.value = _settings.value.copy(activityType = next)
@@ -159,5 +176,10 @@ class RecordViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun pdcaSelfCheck(): String = "P:补齐权限/前台服务/存储 D:真实GPS录制 C:回放详情与中断检测 A:继续补地图回放" 
+    fun splitPreview(): String {
+        val d = repository.currentPoints().size / 5
+        return "P1分段预览: 1km*${d.coerceAtLeast(1)}"
+    }
+
+    fun pdcaSelfCheck(): String = "P0:多地图+回放 P1:分段统计+导出 P2:云同步/AI开关" 
 }

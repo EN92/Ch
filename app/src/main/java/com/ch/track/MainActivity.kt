@@ -112,6 +112,7 @@ private fun Dashboard(innerPadding: PaddingValues, viewModel: RecordViewModel) {
                 Text("录制状态：$status", style = MaterialTheme.typography.titleMedium)
                 Text("采样间隔：${sampling.intervalMs / 1000}s")
                 Text("模式：${if (settings.powerSave) "省电" else "标准"} | 单位：${settings.unit} | 自动暂停：${if (settings.autoPause) "开" else "关"}")
+                Text("地图供应商：${settings.mapVendor} | 云同步：${if (settings.cloudSync) "开" else "关"} | AI：${if (settings.aiInsight) "开" else "关"}")
                 Text("运动类型：${settings.activityType} · 点位数：$pointCount")
                 Text(viewModel.summary())
             }
@@ -123,6 +124,7 @@ private fun Dashboard(innerPadding: PaddingValues, viewModel: RecordViewModel) {
                 Text("已实现：权限请求、前台服务、真实GPS、本地存储、GPX导出")
                 Text("指标：开始${metrics.startCount} 完成${metrics.finishCount} 分享${metrics.shareCount}")
                 Text(viewModel.pdcaSelfCheck())
+                Text(viewModel.splitPreview())
             }
         }
 
@@ -145,6 +147,9 @@ private fun Dashboard(innerPadding: PaddingValues, viewModel: RecordViewModel) {
         Button(modifier = Modifier.fillMaxWidth(), onClick = { viewModel.toggleUnit() }) { Text("切换 km/mile") }
         Button(modifier = Modifier.fillMaxWidth(), onClick = { viewModel.toggleAutoPause() }) { Text("切换自动暂停") }
         Button(modifier = Modifier.fillMaxWidth(), onClick = { viewModel.cycleActivityType() }) { Text("切换运动类型") }
+        Button(modifier = Modifier.fillMaxWidth(), onClick = { viewModel.cycleMapVendor() }) { Text("切换地图API") }
+        Button(modifier = Modifier.fillMaxWidth(), onClick = { viewModel.toggleCloudSync() }) { Text("P2-切换云同步") }
+        Button(modifier = Modifier.fillMaxWidth(), onClick = { viewModel.toggleAiInsight() }) { Text("P2-切换AI洞察") }
         Text("平滑系数: %.2f".format(settings.smoothFactor), color = Color.White)
         Slider(value = settings.smoothFactor, onValueChange = { viewModel.updateSmoothFactor(it) }, valueRange = 0.1f..0.5f)
         Text("突变速度阈值: %.1f m/s".format(settings.maxJumpSpeed), color = Color.White)
@@ -192,6 +197,7 @@ private fun Dashboard(innerPadding: PaddingValues, viewModel: RecordViewModel) {
                     Text("详情：${detail.activityType} / 点数 ${detail.points.size}")
                     Text("距离 %.2fkm 配速 ${detail.avgPaceSecPerKm}s/km".format(detail.distanceMeters / 1000f))
                     Text("质量：平均精度 %.1fm / 最高速度 %.1fm/s".format(avgAcc, maxSpeed))
+                    Text("地图回放：${viewModel.mapSummary(detail.points)}")
                     Text("速度曲线：${speedSparkline(speeds)}")
                     if (speeds.isNotEmpty()) {
                         Slider(value = clamped.toFloat(), onValueChange = { focusIndex.intValue = it.toInt() }, valueRange = 0f..(speeds.size - 1).toFloat())

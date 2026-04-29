@@ -1,5 +1,7 @@
 package com.ch.track.domain
 
+import com.ch.track.map.MapVendor
+
 data class TrackPoint(
     val lat: Double,
     val lon: Double,
@@ -26,7 +28,10 @@ data class UserSettings(
     val autoPause: Boolean = true,
     val activityType: ActivityType = ActivityType.RUN,
     val smoothFactor: Float = 0.22f,
-    val maxJumpSpeed: Float = 9f
+    val maxJumpSpeed: Float = 9f,
+    val mapVendor: MapVendor = MapVendor.GOOGLE,
+    val cloudSync: Boolean = false,
+    val aiInsight: Boolean = false
 )
 
 enum class SamplingState(val intervalMs: Long) {
