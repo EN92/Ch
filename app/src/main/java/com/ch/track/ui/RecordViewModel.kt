@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.ch.track.core.TrackRecorder
+import com.ch.track.data.DraftStore
 import com.ch.track.data.TrackRepository
 import com.ch.track.domain.ActivityType
 import com.ch.track.domain.RecordStatus
@@ -26,6 +27,7 @@ class RecordViewModel(app: Application) : AndroidViewModel(app) {
     private val repository = TrackRepository(AppDatabase.get(app).trackDao())
     private val recorder = TrackRecorder(repository)
     private val locationEngine = LocationEngine(app)
+    private val draftStore = DraftStore(app)
 
     val status: StateFlow<RecordStatus> = recorder.statusFlow()
     val sampling: StateFlow<SamplingState> = recorder.samplingFlow()
@@ -34,11 +36,19 @@ class RecordViewModel(app: Application) : AndroidViewModel(app) {
 
     private val _settings = MutableStateFlow(UserSettings())
     private val _message = MutableStateFlow("准备开始")
+    private val _selected = MutableStateFlow<TrackSession?>(null)
 
     val settings: StateFlow<UserSettings> = _settings.asStateFlow()
     val message: StateFlow<String> = _message.asStateFlow()
+    val selected: StateFlow<TrackSession?> = _selected.asStateFlow()
 
     private var startTs: Long = 0L
+
+    init {
+        if (draftStore.hasActiveSession()) {
+            _message.value = "检测到上次未完成记录，可继续或结束保存"
+        }
+    }
 
     fun startOrPause() {
         when (status.value) {
@@ -46,6 +56,7 @@ class RecordViewModel(app: Application) : AndroidViewModel(app) {
                 if (status.value == RecordStatus.STOPPED) {
                     repository.clearCurrentPoints()
                     startTs = System.currentTimeMillis()
+                    draftStore.saveActiveSession(startTs, _settings.value.activityType.name)
                 }
                 recorder.start()
                 recorder.updateSamplingBySpeed(if (_settings.value.powerSave) 0.8f else 2.4f)
@@ -80,7 +91,14 @@ class RecordViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch { repository.saveSession(session) }
         locationEngine.stop()
         recorder.stop()
+        draftStore.clearActiveSession()
         _message.value = "已结束并保存"
+    }
+
+    fun selectSession(id: String) {
+        viewModelScope.launch {
+            _selected.value = repository.loadSessionDetail(id)
+        }
     }
 
     fun togglePowerMode() { _settings.value = _settings.value.copy(powerSave = !_settings.value.powerSave) }
@@ -101,4 +119,6 @@ class RecordViewModel(app: Application) : AndroidViewModel(app) {
     fun shareText(): String = "TraceMaster | ${summary()}"
     fun exportLastGpx(): String = history.value.firstOrNull()?.let { repository.exportSessionAsGpx(it) } ?: "暂无可导出轨迹"
     fun clearHistory() { viewModelScope.launch { repository.clearHistory() }; _message.value = "历史已清空" }
+
+    fun pdcaSelfCheck(): String = "P:补齐权限/前台服务/存储 D:真实GPS录制 C:回放详情与中断检测 A:继续补地图回放" 
 }

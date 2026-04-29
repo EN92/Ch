@@ -64,6 +64,7 @@ private fun Dashboard(innerPadding: PaddingValues, viewModel: RecordViewModel) {
     val history by viewModel.history.collectAsStateWithLifecycle()
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
+    val selected by viewModel.selected.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -104,6 +105,7 @@ private fun Dashboard(innerPadding: PaddingValues, viewModel: RecordViewModel) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("提示：$message")
                 Text("已实现：权限请求、前台服务、真实GPS、本地存储、GPX导出")
+                Text(viewModel.pdcaSelfCheck())
             }
         }
 
@@ -148,10 +150,19 @@ private fun Dashboard(innerPadding: PaddingValues, viewModel: RecordViewModel) {
         LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             items(history.take(3)) { item ->
                 Card(modifier = Modifier.fillMaxWidth()) {
-                    Text(
-                        modifier = Modifier.padding(12.dp),
-                        text = "${item.activityType} · ${item.id.take(8)} · %.2fkm · ${item.points.size}点".format(item.distanceMeters / 1000f)
-                    )
+                    Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(text = "${item.activityType} · ${item.id.take(8)} · %.2fkm".format(item.distanceMeters / 1000f))
+                        Button(onClick = { viewModel.selectSession(item.id) }) { Text("查看详情") }
+                    }
+                }
+            }
+        }
+
+        selected?.let { detail ->
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("详情：${detail.activityType} / 点数 ${detail.points.size}")
+                    Text("距离 %.2fkm 配速 ${detail.avgPaceSecPerKm}s/km".format(detail.distanceMeters / 1000f))
                 }
             }
         }
