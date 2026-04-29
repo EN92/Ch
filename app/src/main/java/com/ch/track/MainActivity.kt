@@ -65,6 +65,7 @@ private fun Dashboard(innerPadding: PaddingValues, viewModel: RecordViewModel) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
     val selected by viewModel.selected.collectAsStateWithLifecycle()
+    val metrics by viewModel.metrics.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -105,6 +106,7 @@ private fun Dashboard(innerPadding: PaddingValues, viewModel: RecordViewModel) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("提示：$message")
                 Text("已实现：权限请求、前台服务、真实GPS、本地存储、GPX导出")
+                Text("指标：开始${metrics.startCount} 完成${metrics.finishCount} 分享${metrics.shareCount}")
                 Text(viewModel.pdcaSelfCheck())
             }
         }

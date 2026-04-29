@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import com.ch.track.core.TrackRecorder
 import com.ch.track.data.DraftStore
 import com.ch.track.data.TrackRepository
+import com.ch.track.data.UsageMetrics
+import com.ch.track.data.UsageMetricsStore
 import com.ch.track.domain.ActivityType
 import com.ch.track.domain.RecordStatus
 import com.ch.track.domain.SamplingState
@@ -28,6 +30,7 @@ class RecordViewModel(app: Application) : AndroidViewModel(app) {
     private val recorder = TrackRecorder(repository)
     private val locationEngine = LocationEngine(app)
     private val draftStore = DraftStore(app)
+    private val metricsStore = UsageMetricsStore(app)
 
     val status: StateFlow<RecordStatus> = recorder.statusFlow()
     val sampling: StateFlow<SamplingState> = recorder.samplingFlow()
@@ -37,10 +40,12 @@ class RecordViewModel(app: Application) : AndroidViewModel(app) {
     private val _settings = MutableStateFlow(UserSettings())
     private val _message = MutableStateFlow("准备开始")
     private val _selected = MutableStateFlow<TrackSession?>(null)
+    private val _metrics = MutableStateFlow(metricsStore.snapshot())
 
     val settings: StateFlow<UserSettings> = _settings.asStateFlow()
     val message: StateFlow<String> = _message.asStateFlow()
     val selected: StateFlow<TrackSession?> = _selected.asStateFlow()
+    val metrics: StateFlow<UsageMetrics> = _metrics.asStateFlow()
 
     private var startTs: Long = 0L
 
@@ -59,10 +64,13 @@ class RecordViewModel(app: Application) : AndroidViewModel(app) {
                     draftStore.saveActiveSession(startTs, _settings.value.activityType.name)
                 }
                 recorder.start()
+                metricsStore.onStart()
+                _metrics.value = metricsStore.snapshot()
                 recorder.updateSamplingBySpeed(if (_settings.value.powerSave) 0.8f else 2.4f)
                 locationEngine.start(sampling.value.intervalMs) { lat, lon, speed, acc, time ->
-                    repository.addPoint(TrackPoint(lat, lon, time, speed, acc))
+                    if (acc <= 30f) repository.addPoint(TrackPoint(lat, lon, time, speed, acc))
                     recorder.updateSamplingBySpeed(speed)
+                    if (_settings.value.autoPause && speed < 0.5f) recorder.pause()
                 }
                 _message.value = "录制中（真实GPS）"
             }
@@ -92,6 +100,8 @@ class RecordViewModel(app: Application) : AndroidViewModel(app) {
         locationEngine.stop()
         recorder.stop()
         draftStore.clearActiveSession()
+        metricsStore.onFinish()
+        _metrics.value = metricsStore.snapshot()
         _message.value = "已结束并保存"
     }
 
@@ -116,7 +126,7 @@ class RecordViewModel(app: Application) : AndroidViewModel(app) {
         return "${_settings.value.activityType} · 距离 $distanceText · 配速 ${formatPace(pace)}"
     }
 
-    fun shareText(): String = "TraceMaster | ${summary()}"
+    fun shareText(): String { metricsStore.onShare(); _metrics.value = metricsStore.snapshot(); return "TraceMaster | ${summary()}" }
     fun exportLastGpx(): String = history.value.firstOrNull()?.let { repository.exportSessionAsGpx(it) } ?: "暂无可导出轨迹"
     fun clearHistory() { viewModelScope.launch { repository.clearHistory() }; _message.value = "历史已清空" }
 
