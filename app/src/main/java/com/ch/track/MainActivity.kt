@@ -1,9 +1,14 @@
 package com.ch.track
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -27,8 +32,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ch.track.domain.RecordStatus
+import com.ch.track.service.RecordForegroundService
 import com.ch.track.ui.RecordViewModel
 
 class MainActivity : ComponentActivity() {
@@ -59,6 +66,26 @@ private fun Dashboard(innerPadding: PaddingValues, viewModel: RecordViewModel) {
     val message by viewModel.message.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions(),
+        onResult = {}
+    )
+
+    fun ensurePermissions(): Boolean {
+        val permissions = mutableListOf(
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.ACCESS_COARSE_LOCATION
+        )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) permissions += Manifest.permission.POST_NOTIFICATIONS
+        val denied = permissions.filter {
+            ContextCompat.checkSelfPermission(context, it) != PackageManager.PERMISSION_GRANTED
+        }
+        return if (denied.isEmpty()) true else {
+            permissionLauncher.launch(denied.toTypedArray())
+            false
+        }
+    }
+
     Column(
         modifier = Modifier.fillMaxSize().background(Color(0xFF101114)).padding(innerPadding).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -76,14 +103,25 @@ private fun Dashboard(innerPadding: PaddingValues, viewModel: RecordViewModel) {
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("提示：$message")
-                Text("实用补齐：自动暂停开关、运动类型切换、历史清理、GPX导出")
+                Text("已实现：权限请求、前台服务、真实GPS、本地存储、GPX导出")
             }
         }
 
-        Button(modifier = Modifier.fillMaxWidth().height(80.dp), onClick = { viewModel.startOrPause() }) {
+        Button(modifier = Modifier.fillMaxWidth().height(80.dp), onClick = {
+            if (status == RecordStatus.RECORDING) {
+                viewModel.startOrPause()
+                context.startService(Intent(context, RecordForegroundService::class.java).apply { action = RecordForegroundService.ACTION_STOP })
+            } else if (ensurePermissions()) {
+                viewModel.startOrPause()
+                ContextCompat.startForegroundService(context, Intent(context, RecordForegroundService::class.java))
+            }
+        }) {
             Text(if (status == RecordStatus.RECORDING) "暂停记录" else "开始记录")
         }
-        Button(modifier = Modifier.fillMaxWidth(), onClick = { viewModel.stop() }) { Text("结束并保存") }
+        Button(modifier = Modifier.fillMaxWidth(), onClick = {
+            viewModel.stop()
+            context.startService(Intent(context, RecordForegroundService::class.java).apply { action = RecordForegroundService.ACTION_STOP })
+        }) { Text("结束并保存") }
         Button(modifier = Modifier.fillMaxWidth(), onClick = { viewModel.togglePowerMode() }) { Text("切换省电/标准") }
         Button(modifier = Modifier.fillMaxWidth(), onClick = { viewModel.toggleUnit() }) { Text("切换 km/mile") }
         Button(modifier = Modifier.fillMaxWidth(), onClick = { viewModel.toggleAutoPause() }) { Text("切换自动暂停") }
