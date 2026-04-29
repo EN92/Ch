@@ -70,7 +70,11 @@ class RecordViewModel(app: Application) : AndroidViewModel(app) {
                 locationEngine.start(sampling.value.intervalMs) { lat, lon, speed, acc, time ->
                     if (acc <= 30f) repository.addPoint(TrackPoint(lat, lon, time, speed, acc))
                     recorder.updateSamplingBySpeed(speed)
-                    if (_settings.value.autoPause && speed < 0.5f) recorder.pause()
+                    if (_settings.value.autoPause && speed < 0.5f) {
+                        recorder.pause()
+                        locationEngine.stop()
+                        _message.value = "已自动暂停（低速省电）"
+                    }
                 }
                 _message.value = "录制中（真实GPS）"
             }
@@ -129,6 +133,14 @@ class RecordViewModel(app: Application) : AndroidViewModel(app) {
     fun shareText(): String { metricsStore.onShare(); _metrics.value = metricsStore.snapshot(); return "TraceMaster | ${summary()}" }
     fun exportLastGpx(): String = history.value.firstOrNull()?.let { repository.exportSessionAsGpx(it) } ?: "暂无可导出轨迹"
     fun clearHistory() { viewModelScope.launch { repository.clearHistory() }; _message.value = "历史已清空" }
+
+    fun resumeDraftIfAny() {
+        if (draftStore.hasActiveSession()) {
+            _message.value = "已恢复草稿状态，请点击开始继续记录"
+        } else {
+            _message.value = "当前没有可恢复草稿"
+        }
+    }
 
     fun pdcaSelfCheck(): String = "P:补齐权限/前台服务/存储 D:真实GPS录制 C:回放详情与中断检测 A:继续补地图回放" 
 }

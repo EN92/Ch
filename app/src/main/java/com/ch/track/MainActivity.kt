@@ -147,6 +147,7 @@ private fun Dashboard(innerPadding: PaddingValues, viewModel: RecordViewModel) {
             context.startActivity(Intent.createChooser(intent, "导出 GPX"))
         }) { Text("导出 GPX") }
         Button(modifier = Modifier.fillMaxWidth(), onClick = { viewModel.clearHistory() }) { Text("清空历史") }
+        Button(modifier = Modifier.fillMaxWidth(), onClick = { viewModel.resumeDraftIfAny() }) { Text("恢复草稿提示") }
 
         Text("历史记录", color = Color.White)
         LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -163,8 +164,11 @@ private fun Dashboard(innerPadding: PaddingValues, viewModel: RecordViewModel) {
         selected?.let { detail ->
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    val avgAcc = if (detail.points.isEmpty()) 0f else detail.points.map { it.accuracy }.average()
+                    val maxSpeed = detail.points.maxOfOrNull { it.speed } ?: 0f
                     Text("详情：${detail.activityType} / 点数 ${detail.points.size}")
                     Text("距离 %.2fkm 配速 ${detail.avgPaceSecPerKm}s/km".format(detail.distanceMeters / 1000f))
+                    Text("质量：平均精度 %.1fm / 最高速度 %.1fm/s".format(avgAcc, maxSpeed))
                 }
             }
         }
