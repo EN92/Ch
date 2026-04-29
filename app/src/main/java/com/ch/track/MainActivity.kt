@@ -81,6 +81,7 @@ private fun Dashboard(innerPadding: PaddingValues, viewModel: RecordViewModel) {
     val history by viewModel.history.collectAsStateWithLifecycle()
     val filter by viewModel.historyFilter.collectAsStateWithLifecycle()
     val favoritesOnly by viewModel.favoritesOnly.collectAsStateWithLifecycle()
+    val countdown by viewModel.countdown.collectAsStateWithLifecycle()
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
     val selected by viewModel.selected.collectAsStateWithLifecycle()
@@ -120,6 +121,7 @@ private fun Dashboard(innerPadding: PaddingValues, viewModel: RecordViewModel) {
                 Text("运动类型：${settings.activityType} · 点位数：$pointCount")
                 Text(viewModel.summary())
                 Text(viewModel.liveSummary())
+                if (countdown > 0) Text("倒计时: ${countdown}s", color = Color(0xFFFFD54F))
                 Text(viewModel.batteryScoreHint())
                 Text(viewModel.weeklySummary())
             }
@@ -140,7 +142,7 @@ private fun Dashboard(innerPadding: PaddingValues, viewModel: RecordViewModel) {
                 viewModel.startOrPause()
                 context.startService(Intent(context, RecordForegroundService::class.java).apply { action = RecordForegroundService.ACTION_STOP })
             } else if (ensurePermissions()) {
-                viewModel.startOrPause()
+                viewModel.startWithCountdown(3)
                 ContextCompat.startForegroundService(context, Intent(context, RecordForegroundService::class.java))
             }
         }) {
@@ -151,6 +153,7 @@ private fun Dashboard(innerPadding: PaddingValues, viewModel: RecordViewModel) {
             context.startService(Intent(context, RecordForegroundService::class.java).apply { action = RecordForegroundService.ACTION_STOP })
         }) { Text("结束并保存") }
         Button(modifier = Modifier.fillMaxWidth(), onClick = { viewModel.togglePowerMode() }) { Text("切换省电/标准") }
+        Button(modifier = Modifier.fillMaxWidth(), onClick = { viewModel.quickMark() }) { Text("快速打点") }
         Button(modifier = Modifier.fillMaxWidth(), onClick = { viewModel.toggleUnit() }) { Text("切换 km/mile") }
         Button(modifier = Modifier.fillMaxWidth(), onClick = { viewModel.toggleAutoPause() }) { Text("切换自动暂停") }
         Button(modifier = Modifier.fillMaxWidth(), onClick = { viewModel.cycleActivityType() }) { Text("切换运动类型") }

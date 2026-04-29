@@ -56,6 +56,7 @@ class RecordViewModel(app: Application) : AndroidViewModel(app) {
     private val _recordSec = MutableStateFlow(0L)
     private val _distanceLive = MutableStateFlow(0f)
     private val _gpsQuality = MutableStateFlow("--")
+    private val _countdown = MutableStateFlow(0)
 
     val settings: StateFlow<UserSettings> = _settings.asStateFlow()
     val message: StateFlow<String> = _message.asStateFlow()
@@ -65,6 +66,7 @@ class RecordViewModel(app: Application) : AndroidViewModel(app) {
     val recordSec: StateFlow<Long> = _recordSec.asStateFlow()
     val distanceLive: StateFlow<Float> = _distanceLive.asStateFlow()
     val gpsQuality: StateFlow<String> = _gpsQuality.asStateFlow()
+    val countdown: StateFlow<Int> = _countdown.asStateFlow()
 
     private val _historyFilter = MutableStateFlow<ActivityType?>(null)
     private val _favoritesOnly = MutableStateFlow(false)
@@ -98,6 +100,18 @@ class RecordViewModel(app: Application) : AndroidViewModel(app) {
                     _message.value = "已加载本地历史 ${dbHistory.size} 条"
                 }
             }
+        }
+    }
+
+    fun startWithCountdown(seconds: Int = 3) {
+        viewModelScope.launch {
+            for (i in seconds downTo 1) {
+                _countdown.value = i
+                _message.value = "即将开始记录: ${i}s"
+                delay(1000)
+            }
+            _countdown.value = 0
+            startOrPause()
         }
     }
 
@@ -232,6 +246,7 @@ class RecordViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
     fun batteryScoreHint(): String = "续航评分: " + if (_settings.value.powerSave) "A" else "B"
+    fun quickMark() { _message.value = "已打点: ${recordSec.value}s / %.2fkm".format(distanceLive.value / 1000f) }
 
     fun weeklySummary(): String {
         val sessions = history.value.take(7)
