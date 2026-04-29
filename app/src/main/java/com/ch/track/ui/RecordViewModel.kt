@@ -12,6 +12,7 @@ import com.ch.track.domain.ActivityType
 import com.ch.track.domain.RecordStatus
 import com.ch.track.domain.SamplingState
 import com.ch.track.domain.TrackFilter
+import com.ch.track.domain.FilterProfile
 import com.ch.track.domain.TrackPoint
 import com.ch.track.domain.TrackSession
 import com.ch.track.domain.UserSettings
@@ -51,6 +52,12 @@ class RecordViewModel(app: Application) : AndroidViewModel(app) {
 
     private var startTs: Long = 0L
 
+    private fun currentProfile(): FilterProfile = when (_settings.value.activityType) {
+        ActivityType.RUN -> FilterProfile(9f, 25f, 0.22)
+        ActivityType.HIKE -> FilterProfile(6f, 20f, 0.18)
+        ActivityType.RIDE -> FilterProfile(18f, 35f, 0.30)
+    }
+
     init {
         if (draftStore.hasActiveSession()) {
             _message.value = "检测到上次未完成记录，可继续或结束保存"
@@ -71,9 +78,8 @@ class RecordViewModel(app: Application) : AndroidViewModel(app) {
                 _metrics.value = metricsStore.snapshot()
                 recorder.updateSamplingBySpeed(if (_settings.value.powerSave) 0.8f else 2.4f)
                 locationEngine.start(sampling.value.intervalMs) { lat, lon, speed, acc, time ->
-                    if (acc <= 30f) {
-                        trackFilter.filter(TrackPoint(lat, lon, time, speed, acc))?.let { repository.addPoint(it) }
-                    }
+                    val profile = currentProfile()
+                    trackFilter.filter(TrackPoint(lat, lon, time, speed, acc), profile)?.let { repository.addPoint(it) }
                     recorder.updateSamplingBySpeed(speed)
                     if (_settings.value.autoPause && speed < 0.5f) {
                         recorder.pause()

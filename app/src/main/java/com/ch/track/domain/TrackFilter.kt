@@ -2,10 +2,16 @@ package com.ch.track.domain
 
 import kotlin.math.abs
 
+data class FilterProfile(
+    val maxJumpSpeed: Float,
+    val maxAccuracy: Float,
+    val smoothFactor: Double
+)
+
 class TrackFilter {
     private var last: TrackPoint? = null
 
-    fun filter(raw: TrackPoint): TrackPoint? {
+    fun filter(raw: TrackPoint, profile: FilterProfile): TrackPoint? {
         val prev = last
         if (prev == null) {
             last = raw
@@ -15,13 +21,14 @@ class TrackFilter {
         val dt = ((raw.time - prev.time).coerceAtLeast(1L)) / 1000f
         val estSpeed = distanceMeter(prev, raw) / dt
 
-        if (estSpeed > 18f || raw.accuracy > 40f) {
+        if (estSpeed > profile.maxJumpSpeed || raw.accuracy > profile.maxAccuracy) {
             return null
         }
 
+        val alpha = profile.smoothFactor
         val smooth = TrackPoint(
-            lat = prev.lat * 0.75 + raw.lat * 0.25,
-            lon = prev.lon * 0.75 + raw.lon * 0.25,
+            lat = prev.lat * (1 - alpha) + raw.lat * alpha,
+            lon = prev.lon * (1 - alpha) + raw.lon * alpha,
             time = raw.time,
             speed = (prev.speed * 0.6f + raw.speed * 0.4f),
             accuracy = raw.accuracy

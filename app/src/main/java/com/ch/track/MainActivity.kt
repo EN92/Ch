@@ -57,6 +57,17 @@ private fun TrackApp(viewModel: RecordViewModel) {
     }
 }
 
+
+private fun speedSparkline(values: List<Float>): String {
+    if (values.isEmpty()) return "-"
+    val blocks = listOf("▁","▂","▃","▄","▅","▆","▇","█")
+    val max = values.maxOrNull() ?: 1f
+    return values.takeLast(12).joinToString("") { v ->
+        val idx = ((v / max) * (blocks.size - 1)).toInt().coerceIn(0, blocks.size - 1)
+        blocks[idx]
+    }
+}
+
 @Composable
 private fun Dashboard(innerPadding: PaddingValues, viewModel: RecordViewModel) {
     val status by viewModel.status.collectAsStateWithLifecycle()
@@ -171,6 +182,7 @@ private fun Dashboard(innerPadding: PaddingValues, viewModel: RecordViewModel) {
                     Text("详情：${detail.activityType} / 点数 ${detail.points.size}")
                     Text("距离 %.2fkm 配速 ${detail.avgPaceSecPerKm}s/km".format(detail.distanceMeters / 1000f))
                     Text("质量：平均精度 %.1fm / 最高速度 %.1fm/s".format(avgAcc, maxSpeed))
+                    Text("速度曲线：${speedSparkline(detail.points.map { it.speed })}")
                 }
             }
         }
