@@ -11,6 +11,7 @@ import com.ch.track.data.UsageMetricsStore
 import com.ch.track.domain.ActivityType
 import com.ch.track.domain.RecordStatus
 import com.ch.track.domain.SamplingState
+import com.ch.track.domain.TrackFilter
 import com.ch.track.domain.TrackPoint
 import com.ch.track.domain.TrackSession
 import com.ch.track.domain.UserSettings
@@ -30,6 +31,7 @@ class RecordViewModel(app: Application) : AndroidViewModel(app) {
     private val recorder = TrackRecorder(repository)
     private val locationEngine = LocationEngine(app)
     private val draftStore = DraftStore(app)
+    private val trackFilter = TrackFilter()
     private val metricsStore = UsageMetricsStore(app)
 
     val status: StateFlow<RecordStatus> = recorder.statusFlow()
@@ -60,6 +62,7 @@ class RecordViewModel(app: Application) : AndroidViewModel(app) {
             RecordStatus.STOPPED, RecordStatus.PAUSED -> {
                 if (status.value == RecordStatus.STOPPED) {
                     repository.clearCurrentPoints()
+                    trackFilter.reset()
                     startTs = System.currentTimeMillis()
                     draftStore.saveActiveSession(startTs, _settings.value.activityType.name)
                 }
@@ -68,7 +71,9 @@ class RecordViewModel(app: Application) : AndroidViewModel(app) {
                 _metrics.value = metricsStore.snapshot()
                 recorder.updateSamplingBySpeed(if (_settings.value.powerSave) 0.8f else 2.4f)
                 locationEngine.start(sampling.value.intervalMs) { lat, lon, speed, acc, time ->
-                    if (acc <= 30f) repository.addPoint(TrackPoint(lat, lon, time, speed, acc))
+                    if (acc <= 30f) {
+                        trackFilter.filter(TrackPoint(lat, lon, time, speed, acc))?.let { repository.addPoint(it) }
+                    }
                     recorder.updateSamplingBySpeed(speed)
                     if (_settings.value.autoPause && speed < 0.5f) {
                         recorder.pause()

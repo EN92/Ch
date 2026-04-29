@@ -22,6 +22,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -92,7 +93,7 @@ private fun Dashboard(innerPadding: PaddingValues, viewModel: RecordViewModel) {
         modifier = Modifier.fillMaxSize().background(Color(0xFF101114)).padding(innerPadding).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Card(modifier = Modifier.fillMaxWidth()) {
+        Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xFF1B1E24))) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("录制状态：$status", style = MaterialTheme.typography.titleMedium)
                 Text("采样间隔：${sampling.intervalMs / 1000}s")
@@ -102,7 +103,7 @@ private fun Dashboard(innerPadding: PaddingValues, viewModel: RecordViewModel) {
             }
         }
 
-        Card(modifier = Modifier.fillMaxWidth()) {
+        Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xFF1B1E24))) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("提示：$message")
                 Text("已实现：权限请求、前台服务、真实GPS、本地存储、GPX导出")
@@ -149,11 +150,12 @@ private fun Dashboard(innerPadding: PaddingValues, viewModel: RecordViewModel) {
         Button(modifier = Modifier.fillMaxWidth(), onClick = { viewModel.clearHistory() }) { Text("清空历史") }
         Button(modifier = Modifier.fillMaxWidth(), onClick = { viewModel.resumeDraftIfAny() }) { Text("恢复草稿提示") }
 
-        Text("历史记录", color = Color.White)
+        Text("🏃 历史记录", color = Color.White, style = MaterialTheme.typography.titleMedium)
         LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             items(history.take(3)) { item ->
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("轨迹摘要", color = Color(0xFFB8C0CC))
                         Text(text = "${item.activityType} · ${item.id.take(8)} · %.2fkm".format(item.distanceMeters / 1000f))
                         Button(onClick = { viewModel.selectSession(item.id) }) { Text("查看详情") }
                     }
